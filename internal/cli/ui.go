@@ -134,6 +134,22 @@ func (u *UI) PrintBanner() {
 	fmt.Fprintf(u.out, "%s%s╰─────────────────────────────────────────────────────────────────╯%s\n\n", padding, ColorBrightCyan, ColorReset)
 }
 
+// StartDualStream initializes and returns a dual-column printer
+func (u *UI) StartDualStream() *DualPrinter {
+	// Try to get os.File from wrapped writer
+	var f *os.File
+	if file, ok := u.out.(*os.File); ok {
+		f = file
+	} else {
+		// Fallback to Stdout if type assertion fails (e.g. testing)
+		f = os.Stdout
+	}
+
+	dp := NewDualPrinter(f)
+	dp.Start()
+	return dp
+}
+
 // PrintConfig prints the configuration info with a modern card-style layout
 func (u *UI) PrintConfig(cfg *config.Config) {
 	fmt.Fprintf(u.out, "%s%s┌─ 🧠 AI Configuration ─────────────────────────────────────────┐%s\n", ColorBrightBlue, ColorBold, ColorReset)

@@ -59,44 +59,38 @@ func (r *Runner) Run(ctx context.Context, material string) error {
 	return r.runNonStreaming(ctx, material)
 }
 
-// runStreaming executes the debate in streaming mode
+// runStreaming executes the debate in streaming mode using a dual-column layout
 func (r *Runner) runStreaming(ctx context.Context, material string) error {
-	proStarted, conStarted := false, false
+	r.ui.PrintDebating()
+
+	// Phase 1: Dual-Column Parallel Stream (Pro/Con)
+	dp := r.ui.StartDualStream()
+
+	var judgeStarted bool
 
 	r.executor.SetStream(
 		func(chunk string) {
-			if !proStarted {
-				r.ui.PrintProHeader()
-				proStarted = true
-			}
-			r.ui.Print(chunk)
+			dp.UpdatePro(chunk)
 		},
 		func(chunk string) {
-			if !conStarted {
-				if proStarted {
-					r.ui.Println("")
-				}
-				r.ui.PrintConHeader()
-				conStarted = true
-			}
-			r.ui.Print(chunk)
+			dp.UpdateCon(chunk)
 		},
 		func(chunk string) {
+			// Phase 2: Judge Stream (Sequential after Pro/Con)
+			if !judgeStarted {
+				r.ui.Println("\n") // Spacer from columns
+				r.ui.PrintJudgeHeader()
+				judgeStarted = true
+			}
 			r.ui.Print(chunk)
 		},
 	)
 
-	r.ui.PrintDebating()
-
-	result, err := r.executor.Execute(ctx, material)
+	_, err := r.executor.Execute(ctx, material)
 	if err != nil {
 		return fmt.Errorf("执行失败: %w", err)
 	}
 
-	// Print verdict header (content already streamed)
-	r.ui.Println("")
-	r.ui.PrintJudgeHeader()
-	r.ui.Println(result.Verdict)
 	r.ui.PrintComplete()
 
 	return nil
