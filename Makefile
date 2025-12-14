@@ -1,38 +1,147 @@
-.PHONY: build test clean install lint
+.PHONY: build test clean install lint fmt cover demo run help all
 
-# Binary name
-BINARY := ./bin/dialecta
+# =============================================================================
+# Variables
+# =============================================================================
+BINARY := dialecta
+BUILD_DIR := ./bin
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+BUILD_TIME := $(shell date -u '+%Y-%m-%d_%H:%M:%S')
+LDFLAGS := -ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME)"
 
-# Build the binary
+# Go parameters
+GOCMD := go
+GOBUILD := $(GOCMD) build
+GOTEST := $(GOCMD) test
+GOGET := $(GOCMD) get
+GOFMT := $(GOCMD) fmt
+GOMOD := $(GOCMD) mod
+
+# =============================================================================
+# Default target
+# =============================================================================
+all: fmt lint test build
+
+# =============================================================================
+# Help
+# =============================================================================
+help:
+	@echo ""
+	@echo "  ╭──────────────────────────────────────────────────────────────╮"
+	@echo "  │             DIALECTA - Build System                          │"
+	@echo "  ╰──────────────────────────────────────────────────────────────╯"
+	@echo ""
+	@echo "  Usage: make [target]"
+	@echo ""
+	@echo "  Targets:"
+	@echo "    build       Build the binary"
+	@echo "    install     Install to GOPATH/bin"
+	@echo "    test        Run tests"
+	@echo "    cover       Run tests with coverage report"
+	@echo "    lint        Run linter (requires golangci-lint)"
+	@echo "    fmt         Format code"
+	@echo "    clean       Remove build artifacts"
+	@echo "    deps        Download dependencies"
+	@echo "    demo        Run with example input"
+	@echo "    run         Run interactive mode"
+	@echo "    all         Format, lint, test, and build"
+	@echo ""
+
+# =============================================================================
+# Build
+# =============================================================================
 build:
-	go build -o $(BINARY) ./cmd/dialecta
+	@echo "🔨 Building $(BINARY)..."
+	@mkdir -p $(BUILD_DIR)
+	$(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY) ./cmd/dialecta
+	@echo "✅ Build complete: $(BUILD_DIR)/$(BINARY)"
 
-# Run tests
-test:
-	go test -v ./...
+build-all: build-linux build-darwin build-windows
 
-# Run tests with coverage
-cover:
-	go test -coverprofile=coverage.out ./...
-	go tool cover -html=coverage.out -o coverage.html
+build-linux:
+	@echo "🔨 Building for Linux..."
+	GOOS=linux GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY)-linux-amd64 ./cmd/dialecta
 
-# Install to GOPATH/bin
+build-darwin:
+	@echo "🔨 Building for macOS..."
+	GOOS=darwin GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY)-darwin-amd64 ./cmd/dialecta
+	GOOS=darwin GOARCH=arm64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY)-darwin-arm64 ./cmd/dialecta
+
+build-windows:
+	@echo "🔨 Building for Windows..."
+	GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY)-windows-amd64.exe ./cmd/dialecta
+
+# =============================================================================
+# Install & Run
+# =============================================================================
 install:
-	go install ./cmd/dialecta
+	@echo "📦 Installing $(BINARY)..."
+	$(GOCMD) install $(LDFLAGS) ./cmd/dialecta
+	@echo "✅ Installed to $(shell go env GOPATH)/bin/$(BINARY)"
 
-# Clean build artifacts
-clean:
-	rm -f $(BINARY)
-	rm -f coverage.out coverage.html
+run:
+	@$(BUILD_DIR)/$(BINARY) --interactive
 
-# Run linter
+# =============================================================================
+# Test
+# =============================================================================
+test:
+	@echo "🧪 Running tests..."
+	$(GOTEST) -v ./...
+
+test-short:
+	@echo "🧪 Running short tests..."
+	$(GOTEST) -short ./...
+
+cover:
+	@echo "📊 Running tests with coverage..."
+	$(GOTEST) -coverprofile=coverage.out ./internal/...
+	$(GOCMD) tool cover -func=coverage.out | tail -1
+	$(GOCMD) tool cover -html=coverage.out -o coverage.html
+	@echo "✅ Coverage report: coverage.html"
+
+# =============================================================================
+# Code Quality
+# =============================================================================
 lint:
-	golangci-lint run
+	@echo "🔍 Running linter..."
+	@if command -v golangci-lint > /dev/null; then \
+		golangci-lint run; \
+	else \
+		echo "⚠️  golangci-lint not installed. Run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
+	fi
 
-# Format code
 fmt:
-	go fmt ./...
+	@echo "📝 Formatting code..."
+	$(GOFMT) ./...
 
-# Run the binary with example input
+vet:
+	@echo "🔬 Running go vet..."
+	$(GOCMD) vet ./...
+
+# =============================================================================
+# Dependencies
+# =============================================================================
+deps:
+	@echo "📦 Downloading dependencies..."
+	$(GOMOD) download
+	$(GOMOD) tidy
+	@echo "✅ Dependencies ready"
+
+# =============================================================================
+# Clean
+# =============================================================================
+clean:
+	@echo "🧹 Cleaning..."
+	@rm -rf $(BUILD_DIR)
+	@rm -f coverage.out coverage.html
+	@echo "✅ Clean complete"
+
+# =============================================================================
+# Demo
+# =============================================================================
 demo:
-	@echo "我们应该在明年启动一个 AI 创业项目" | ./$(BINARY) -
+	@echo ""
+	@echo "📢 Running demo..."
+	@echo ""
+	@echo "我们应该在明年启动一个 AI 创业项目" | $(BUILD_DIR)/$(BINARY) -
