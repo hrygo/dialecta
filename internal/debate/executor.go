@@ -1,6 +1,7 @@
 package debate
 
 import (
+	"context"
 	"fmt"
 	"sync"
 
@@ -19,7 +20,6 @@ type Result struct {
 
 // Executor orchestrates the debate process
 type Executor struct {
-	client  *llm.Client
 	cfg     *config.Config
 	stream  bool
 	onPro   func(string) // 正方流式回调
@@ -29,9 +29,7 @@ type Executor struct {
 
 // NewExecutor creates a new debate executor
 func NewExecutor(cfg *config.Config) *Executor {
-	client := llm.NewClient(cfg.APIKey, cfg.BaseURL)
 	return &Executor{
-		client: client,
 		cfg:    cfg,
 		stream: false,
 	}
@@ -46,7 +44,7 @@ func (e *Executor) SetStream(onPro, onCon, onJudge func(string)) {
 }
 
 // Execute runs the full debate workflow
-func (e *Executor) Execute(material string) (*Result, error) {
+func (e *Executor) Execute(ctx context.Context, material string) (*Result, error) {
 	result := &Result{Material: material}
 
 	// Phase 1: 并行执行正反方辩论
@@ -58,14 +56,17 @@ func (e *Executor) Execute(material string) (*Result, error) {
 	// 正方
 	go func() {
 		defer wg.Done()
-		messages := prompt.BuildAffirmativeMessages(material)
-		mc := e.cfg.ProModel
+		client, err := llm.NewClient(e.cfg.ProRole.ToLLMConfig())
+		if err != nil {
+			proErr = fmt.Errorf("create pro client: %w", err)
+			return
+		}
 
-		var err error
+		messages := prompt.BuildAffirmativeMessages(material)
 		if e.stream && e.onPro != nil {
-			result.ProArgument, err = e.client.ChatStream(mc.Model, messages, mc.Temperature, mc.MaxTokens, e.onPro)
+			result.ProArgument, err = client.ChatStream(ctx, messages, e.onPro)
 		} else {
-			result.ProArgument, err = e.client.Chat(mc.Model, messages, mc.Temperature, mc.MaxTokens)
+			result.ProArgument, err = client.Chat(ctx, messages)
 		}
 		if err != nil {
 			proErr = fmt.Errorf("affirmative: %w", err)
@@ -75,14 +76,17 @@ func (e *Executor) Execute(material string) (*Result, error) {
 	// 反方
 	go func() {
 		defer wg.Done()
-		messages := prompt.BuildNegativeMessages(material)
-		mc := e.cfg.ConModel
+		client, err := llm.NewClient(e.cfg.ConRole.ToLLMConfig())
+		if err != nil {
+			conErr = fmt.Errorf("create con client: %w", err)
+			return
+		}
 
-		var err error
+		messages := prompt.BuildNegativeMessages(material)
 		if e.stream && e.onCon != nil {
-			result.ConArgument, err = e.client.ChatStream(mc.Model, messages, mc.Temperature, mc.MaxTokens, e.onCon)
+			result.ConArgument, err = client.ChatStream(ctx, messages, e.onCon)
 		} else {
-			result.ConArgument, err = e.client.Chat(mc.Model, messages, mc.Temperature, mc.MaxTokens)
+			result.ConArgument, err = client.Chat(ctx, messages)
 		}
 		if err != nil {
 			conErr = fmt.Errorf("negative: %w", err)
@@ -100,14 +104,16 @@ func (e *Executor) Execute(material string) (*Result, error) {
 	}
 
 	// Phase 2: 裁决
-	messages := prompt.BuildAdjudicatorMessages(material, result.ProArgument, result.ConArgument)
-	mc := e.cfg.JudgeModel
+	judgeClient, err := llm.NewClient(e.cfg.JudgeRole.ToLLMConfig())
+	if err != nil {
+		return nil, fmt.Errorf("create judge client: %w", err)
+	}
 
-	var err error
+	messages := prompt.BuildAdjudicatorMessages(material, result.ProArgument, result.ConArgument)
 	if e.stream && e.onJudge != nil {
-		result.Verdict, err = e.client.ChatStream(mc.Model, messages, mc.Temperature, mc.MaxTokens, e.onJudge)
+		result.Verdict, err = judgeClient.ChatStream(ctx, messages, e.onJudge)
 	} else {
-		result.Verdict, err = e.client.Chat(mc.Model, messages, mc.Temperature, mc.MaxTokens)
+		result.Verdict, err = judgeClient.Chat(ctx, messages)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("adjudicator: %w", err)

@@ -2,10 +2,13 @@ package config
 
 import (
 	"os"
+
+	"github.com/huangzhonghui/dialecta/internal/llm"
 )
 
-// ModelConfig holds configuration for a single LLM model
-type ModelConfig struct {
+// RoleConfig holds configuration for a single debate role
+type RoleConfig struct {
+	Provider    llm.Provider
 	Model       string
 	Temperature float64
 	MaxTokens   int
@@ -13,27 +16,28 @@ type ModelConfig struct {
 
 // Config holds the application configuration
 type Config struct {
-	APIKey     string
-	BaseURL    string
-	ProModel   ModelConfig // 正方模型
-	ConModel   ModelConfig // 反方模型
-	JudgeModel ModelConfig // 裁决方模型
+	ProRole   RoleConfig // 正方配置
+	ConRole   RoleConfig // 反方配置
+	JudgeRole RoleConfig // 裁决方配置
 }
 
-// Default model configurations
+// Default role configurations
 var (
-	DefaultProModel = ModelConfig{
-		Model:       "deepseek/deepseek-chat",
+	DefaultProRole = RoleConfig{
+		Provider:    llm.ProviderDeepSeek,
+		Model:       "deepseek-chat",
 		Temperature: 0.8,
 		MaxTokens:   4096,
 	}
-	DefaultConModel = ModelConfig{
-		Model:       "deepseek/deepseek-chat",
+	DefaultConRole = RoleConfig{
+		Provider:    llm.ProviderDeepSeek,
+		Model:       "deepseek-chat",
 		Temperature: 0.8,
 		MaxTokens:   4096,
 	}
-	DefaultJudgeModel = ModelConfig{
-		Model:       "anthropic/claude-sonnet-4-20250514",
+	DefaultJudgeRole = RoleConfig{
+		Provider:    llm.ProviderGemini,
+		Model:       "gemini-2.0-flash",
 		Temperature: 0.1,
 		MaxTokens:   8192,
 	}
@@ -41,36 +45,51 @@ var (
 
 // New creates a new Config with defaults
 func New() *Config {
-	apiKey := os.Getenv("OPENROUTER_API_KEY")
-	if apiKey == "" {
-		apiKey = os.Getenv("OPENAI_API_KEY")
-	}
-
-	baseURL := os.Getenv("OPENROUTER_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://openrouter.ai/api/v1"
-	}
-
 	return &Config{
-		APIKey:     apiKey,
-		BaseURL:    baseURL,
-		ProModel:   DefaultProModel,
-		ConModel:   DefaultConModel,
-		JudgeModel: DefaultJudgeModel,
+		ProRole:   DefaultProRole,
+		ConRole:   DefaultConRole,
+		JudgeRole: DefaultJudgeRole,
 	}
 }
 
-// Validate checks if the configuration is valid
+// Validate checks if required API keys are set
 func (c *Config) Validate() error {
-	if c.APIKey == "" {
-		return ErrMissingAPIKey
+	providers := map[llm.Provider]bool{
+		c.ProRole.Provider:   true,
+		c.ConRole.Provider:   true,
+		c.JudgeRole.Provider: true,
+	}
+
+	for p := range providers {
+		switch p {
+		case llm.ProviderDeepSeek:
+			if os.Getenv("DEEPSEEK_API_KEY") == "" {
+				return ConfigError("DEEPSEEK_API_KEY environment variable is required")
+			}
+		case llm.ProviderGemini:
+			if os.Getenv("GEMINI_API_KEY") == "" && os.Getenv("GOOGLE_API_KEY") == "" {
+				return ConfigError("GEMINI_API_KEY or GOOGLE_API_KEY environment variable is required")
+			}
+		case llm.ProviderDashScope:
+			if os.Getenv("DASHSCOPE_API_KEY") == "" {
+				return ConfigError("DASHSCOPE_API_KEY environment variable is required")
+			}
+		}
 	}
 	return nil
+}
+
+// ToLLMConfig converts RoleConfig to llm.Config
+func (r *RoleConfig) ToLLMConfig() llm.Config {
+	return llm.Config{
+		Provider:    r.Provider,
+		Model:       r.Model,
+		Temperature: r.Temperature,
+		MaxTokens:   r.MaxTokens,
+	}
 }
 
 // Custom errors
 type ConfigError string
 
 func (e ConfigError) Error() string { return string(e) }
-
-const ErrMissingAPIKey = ConfigError("API key is required. Set OPENROUTER_API_KEY or OPENAI_API_KEY environment variable")

@@ -1,178 +1,82 @@
 package llm
 
 import (
-	"bufio"
-	"bytes"
-	"encoding/json"
+	"context"
 	"fmt"
-	"io"
-	"net/http"
-	"strings"
+	"os"
 )
 
-// Client is an OpenRouter-compatible LLM client
-type Client struct {
-	apiKey  string
-	baseURL string
-	http    *http.Client
-}
+// Provider represents an LLM provider
+type Provider string
+
+const (
+	ProviderDeepSeek  Provider = "deepseek"
+	ProviderGemini    Provider = "gemini"
+	ProviderDashScope Provider = "dashscope"
+)
 
 // Message represents a chat message
 type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role    string
+	Content string
 }
 
-// ChatRequest represents the API request
-type ChatRequest struct {
-	Model       string    `json:"model"`
-	Messages    []Message `json:"messages"`
-	Temperature float64   `json:"temperature,omitempty"`
-	MaxTokens   int       `json:"max_tokens,omitempty"`
-	Stream      bool      `json:"stream,omitempty"`
+// Config holds the configuration for an LLM client
+type Config struct {
+	Provider    Provider
+	Model       string
+	Temperature float64
+	MaxTokens   int
 }
 
-// ChatResponse represents the API response
-type ChatResponse struct {
-	ID      string `json:"id"`
-	Choices []struct {
-		Message      Message `json:"message"`
-		FinishReason string  `json:"finish_reason"`
-	} `json:"choices"`
-	Usage struct {
-		PromptTokens     int `json:"prompt_tokens"`
-		CompletionTokens int `json:"completion_tokens"`
-		TotalTokens      int `json:"total_tokens"`
-	} `json:"usage"`
+// Client is the interface for LLM clients
+type Client interface {
+	Chat(ctx context.Context, messages []Message) (string, error)
+	ChatStream(ctx context.Context, messages []Message, onChunk func(string)) (string, error)
 }
 
-// StreamDelta represents a streaming chunk
-type StreamDelta struct {
-	ID      string `json:"id"`
-	Choices []struct {
-		Delta struct {
-			Content string `json:"content"`
-		} `json:"delta"`
-		FinishReason string `json:"finish_reason"`
-	} `json:"choices"`
-}
-
-// NewClient creates a new LLM client
-func NewClient(apiKey, baseURL string) *Client {
-	return &Client{
-		apiKey:  apiKey,
-		baseURL: baseURL,
-		http:    &http.Client{},
-	}
-}
-
-// Chat sends a chat completion request
-func (c *Client) Chat(model string, messages []Message, temperature float64, maxTokens int) (string, error) {
-	req := ChatRequest{
-		Model:       model,
-		Messages:    messages,
-		Temperature: temperature,
-		MaxTokens:   maxTokens,
-		Stream:      false,
-	}
-
-	body, err := json.Marshal(req)
-	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequest("POST", c.baseURL+"/chat/completions", bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	resp, err := c.http.Do(httpReq)
-	if err != nil {
-		return "", fmt.Errorf("send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(respBody))
-	}
-
-	var chatResp ChatResponse
-	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
-		return "", fmt.Errorf("decode response: %w", err)
-	}
-
-	if len(chatResp.Choices) == 0 {
-		return "", fmt.Errorf("no choices in response")
-	}
-
-	return chatResp.Choices[0].Message.Content, nil
-}
-
-// ChatStream sends a chat completion request with streaming
-func (c *Client) ChatStream(model string, messages []Message, temperature float64, maxTokens int, onChunk func(string)) (string, error) {
-	req := ChatRequest{
-		Model:       model,
-		Messages:    messages,
-		Temperature: temperature,
-		MaxTokens:   maxTokens,
-		Stream:      true,
-	}
-
-	body, err := json.Marshal(req)
-	if err != nil {
-		return "", fmt.Errorf("marshal request: %w", err)
-	}
-
-	httpReq, err := http.NewRequest("POST", c.baseURL+"/chat/completions", bytes.NewReader(body))
-	if err != nil {
-		return "", fmt.Errorf("create request: %w", err)
-	}
-
-	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
-
-	resp, err := c.http.Do(httpReq)
-	if err != nil {
-		return "", fmt.Errorf("send request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
-		return "", fmt.Errorf("API error (status %d): %s", resp.StatusCode, string(respBody))
-	}
-
-	var fullContent strings.Builder
-	scanner := bufio.NewScanner(resp.Body)
-
-	for scanner.Scan() {
-		line := scanner.Text()
-		if !strings.HasPrefix(line, "data: ") {
-			continue
+// NewClient creates a new LLM client based on the provider
+func NewClient(cfg Config) (Client, error) {
+	switch cfg.Provider {
+	case ProviderDeepSeek:
+		apiKey := os.Getenv("DEEPSEEK_API_KEY")
+		if apiKey == "" {
+			return nil, fmt.Errorf("DEEPSEEK_API_KEY environment variable is required")
 		}
+		return NewDeepSeekClient(apiKey, cfg), nil
 
-		data := strings.TrimPrefix(line, "data: ")
-		if data == "[DONE]" {
-			break
+	case ProviderGemini:
+		apiKey := os.Getenv("GEMINI_API_KEY")
+		if apiKey == "" {
+			apiKey = os.Getenv("GOOGLE_API_KEY")
 		}
+		if apiKey == "" {
+			return nil, fmt.Errorf("GEMINI_API_KEY or GOOGLE_API_KEY environment variable is required")
+		}
+		return NewGeminiClient(apiKey, cfg), nil
 
-		var delta StreamDelta
-		if err := json.Unmarshal([]byte(data), &delta); err != nil {
-			continue
+	case ProviderDashScope:
+		apiKey := os.Getenv("DASHSCOPE_API_KEY")
+		if apiKey == "" {
+			return nil, fmt.Errorf("DASHSCOPE_API_KEY environment variable is required")
 		}
+		return NewDashScopeClient(apiKey, cfg), nil
 
-		if len(delta.Choices) > 0 {
-			content := delta.Choices[0].Delta.Content
-			fullContent.WriteString(content)
-			if onChunk != nil {
-				onChunk(content)
-			}
-		}
+	default:
+		return nil, fmt.Errorf("unsupported provider: %s", cfg.Provider)
 	}
+}
 
-	return fullContent.String(), nil
+// ParseProvider parses a provider string
+func ParseProvider(s string) (Provider, error) {
+	switch s {
+	case "deepseek":
+		return ProviderDeepSeek, nil
+	case "gemini", "google":
+		return ProviderGemini, nil
+	case "dashscope", "qwen", "alibaba":
+		return ProviderDashScope, nil
+	default:
+		return "", fmt.Errorf("unknown provider: %s (supported: deepseek, gemini, dashscope)", s)
+	}
 }

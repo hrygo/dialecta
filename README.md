@@ -1,6 +1,6 @@
 # Dialecta - 多角色辩论系统
 
-一个基于 Go 的 CLI 工具，实现 **Multi-Persona Debate** 工作流，打破单一 LLM 的幻觉和盲目顺从。
+基于 Go 的 CLI 工具，实现 **Multi-Persona Debate** 工作流，打破单一 LLM 的幻觉和盲目顺从。
 
 ```
 ┌─────────────┐     ┌─────────────┐
@@ -19,21 +19,27 @@
 ## 快速开始
 
 ```bash
-# 设置 API Key
-export OPENROUTER_API_KEY="your-key-here"
+# 设置 API Key（按需设置）
+export DEEPSEEK_API_KEY="your-deepseek-key"
+export GEMINI_API_KEY="your-gemini-key"
+export DASHSCOPE_API_KEY="your-dashscope-key"
 
 # 构建
 go build -o dialecta ./cmd/dialecta
 
-# 分析文件
+# 使用
 ./dialecta proposal.md
-
-# 管道输入
-echo "我们应该在明年启动一个 AI 创业项目" | ./dialecta -
-
-# 交互模式
+echo "我们应该启动 AI 创业项目" | ./dialecta -
 ./dialecta --interactive
 ```
+
+## 支持的提供商
+
+| 提供商    | 环境变量                            | 默认模型           |
+| --------- | ----------------------------------- | ------------------ |
+| DeepSeek  | `DEEPSEEK_API_KEY`                  | `deepseek-chat`    |
+| Gemini    | `GEMINI_API_KEY` / `GOOGLE_API_KEY` | `gemini-2.0-flash` |
+| DashScope | `DASHSCOPE_API_KEY`                 | `qwen-plus`        |
 
 ## 命令行选项
 
@@ -41,52 +47,27 @@ echo "我们应该在明年启动一个 AI 创业项目" | ./dialecta -
 dialecta [options] <file>
 
 Options:
-  --pro-model     正方模型 (default: deepseek/deepseek-chat)
-  --con-model     反方模型 (default: deepseek/deepseek-chat)
-  --judge-model   裁决模型 (default: anthropic/claude-sonnet-4-20250514)
-  --stream        流式输出 (default: true)
-  --interactive   交互模式
+  --pro-provider     正方提供商 (default: deepseek)
+  --pro-model        正方模型
+  --con-provider     反方提供商 (default: deepseek)
+  --con-model        反方模型
+  --judge-provider   裁决提供商 (default: gemini)
+  --judge-model      裁决模型
+  --stream           流式输出 (default: true)
+  --interactive      交互模式
 ```
 
-## 配置
+## 示例
 
-### 环境变量
+```bash
+# 全部使用 DeepSeek
+dialecta --judge-provider deepseek proposal.md
 
-| 变量名                | 说明               | 默认值                         |
-| --------------------- | ------------------ | ------------------------------ |
-| `OPENROUTER_API_KEY`  | OpenRouter API Key | -                              |
-| `OPENAI_API_KEY`      | 备选 API Key       | -                              |
-| `OPENROUTER_BASE_URL` | API 基础 URL       | `https://openrouter.ai/api/v1` |
+# 裁决使用 DeepSeek Reasoner
+dialecta --judge-provider deepseek --judge-model deepseek-reasoner proposal.md
 
-### 模型策略
-
-- **正方/反方**: 使用快速模型，Temperature 0.8 激发发散思维
-- **裁决方**: 使用强逻辑模型，Temperature 0.1 保持理性收敛
-
-## 输出示例
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║           🎭 Dialecta - 多角色辩论系统                        ║
-╚══════════════════════════════════════════════════════════════╝
-
-🟢 正方论述 (The Affirmative)
-────────────────────────────────────────────────────────────────
-【正方核心立场】：...
-【关键支撑论据】：...
-
-🔴 反方论述 (The Negative)
-────────────────────────────────────────────────────────────────
-【反方核心驳斥】：...
-【关键风险/漏洞】：...
-
-⚖️ 裁决方报告 (The Adjudicator)
-────────────────────────────────────────────────────────────────
-## ⚖️ 综合裁决报告
-### 1. 争议焦点分析
-...
-### 3. 最终裁决
-* **综合评分**：XX / 100
+# 使用 DashScope (Qwen)
+dialecta --pro-provider dashscope --con-provider dashscope --judge-provider dashscope proposal.md
 ```
 
 ## License

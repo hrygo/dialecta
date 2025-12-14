@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2024-12-14
+
+### Added
+- Multi-provider support: DeepSeek, Google Gemini, Alibaba DashScope
+- Provider selection via CLI flags (`--pro-provider`, `--con-provider`, `--judge-provider`)
+- Model selection per role (`--pro-model`, `--con-model`, `--judge-model`)
+- Google Gemini official SDK integration
+- Context cancellation support (Ctrl+C graceful shutdown)
+
+### Changed
+- Refactored LLM client to use interface-based design
+- Default judge provider changed from OpenRouter to Gemini
+
 ## [0.1.0] - 2024-12-14
 
 ### Added
