@@ -167,12 +167,12 @@ func TestParserParsing(t *testing.T) {
 	inputPart1 := "## 💡 One-Liner\nThis is a short "
 	inputPart2 := "point.\n\n## 📝 Full Argument\nThis is the body."
 
-	ol, found := parser.Feed(inputPart1)
+	_, found := parser.Feed(inputPart1)
 	if found {
 		t.Error("Should not have found one-liner yet")
 	}
 
-	ol, found = parser.Feed(inputPart2)
+	ol, found := parser.Feed(inputPart2)
 	if !found {
 		t.Error("Should have found one-liner now")
 	}

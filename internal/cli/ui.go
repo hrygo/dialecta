@@ -58,7 +58,7 @@ const (
 )
 
 // Gradient characters for visual effects
-var gradientChars = []string{"░", "▒", "▓", "█"}
+// var gradientChars = []string{"░", "▒", "▓", "█"}
 
 // UI handles all user interface output for the CLI
 type UI struct {

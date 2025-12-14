@@ -169,7 +169,7 @@ func (e *Executor) Execute(ctx context.Context, material string) (*Result, error
 	judgeParser := NewStreamParser("## 📝 Full Verdict")
 
 	if e.stream && e.onJudge != nil {
-		_, err = judgeClient.ChatStream(ctx, messages, func(chunk string) {
+		_, _ = judgeClient.ChatStream(ctx, messages, func(chunk string) {
 			oneLiner, found := judgeParser.Feed(chunk)
 			if found {
 				e.onJudge(oneLiner, false)

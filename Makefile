@@ -1,4 +1,4 @@
-.PHONY: build test clean install lint fmt cover demo run help all
+.PHONY: build test clean install lint fmt cover demo run help all debate-ui debate-demo debate-mixed
 
 # =============================================================================
 # Variables
@@ -18,7 +18,12 @@ GOFMT := $(GOCMD) fmt
 GOMOD := $(GOCMD) mod
 
 # =============================================================================
-# Default target
+# Default Goal
+# =============================================================================
+.DEFAULT_GOAL := help
+
+# =============================================================================
+# Main Build Task
 # =============================================================================
 all: fmt lint test build
 
@@ -33,23 +38,28 @@ help:
 	@echo ""
 	@echo "  Usage: make [target]"
 	@echo ""
-	@echo "  Targets:"
-	@echo "    build       Build the binary"
-	@echo "    install     Install to GOPATH/bin"
-	@echo "    test        Run tests"
-	@echo "    cover       Run tests with coverage report"
-	@echo "    lint        Run linter (requires golangci-lint)"
-	@echo "    fmt         Format code"
-	@echo "    clean       Remove build artifacts"
-	@echo "    deps        Download dependencies"
-	@echo "    demo        Run with example input"
-	@echo "    run         Run interactive mode"
-	@echo "    all         Format, lint, test, and build"
+	@echo "  🛠️  Engineering Capabilities:"
+	@echo "    build         Build the binary"
+	@echo "    build-all     Build for Linux, macOS, and Windows"
+	@echo "    clean         Remove build artifacts"
+	@echo "    deps          Download dependencies"
+	@echo "    fmt           Format code"
+	@echo "    lint          Run linter"
+	@echo "    test          Run tests"
+	@echo "    cover         Run tests with coverage"
+	@echo "    install       Install to GOPATH/bin"
+	@echo ""
+	@echo "  🎭 Debate Capabilities:"
+	@echo "    debate-ui     Run in interactive mode"
+	@echo "    debate-demo   Run a quick demo usage"
+	@echo "    debate-file   Run debate on a file (usage: make debate-file FILE=doc.md)"
+	@echo "    debate-mixed  Run with mixed providers (DeepSeek/Qwen/Gemini)"
 	@echo ""
 
 # =============================================================================
-# Build
+# 🛠️ Engineering Capabilities
 # =============================================================================
+
 build:
 	@echo "🔨 Building $(BINARY)..."
 	@mkdir -p $(BUILD_DIR)
@@ -71,38 +81,22 @@ build-windows:
 	@echo "🔨 Building for Windows..."
 	GOOS=windows GOARCH=amd64 $(GOBUILD) $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY)-windows-amd64.exe ./cmd/dialecta
 
-# =============================================================================
-# Install & Run
-# =============================================================================
-install:
-	@echo "📦 Installing $(BINARY)..."
-	$(GOCMD) install $(LDFLAGS) ./cmd/dialecta
-	@echo "✅ Installed to $(shell go env GOPATH)/bin/$(BINARY)"
+clean:
+	@echo "🧹 Cleaning..."
+	@rm -rf $(BUILD_DIR)
+	@rm -f coverage.out coverage.html
+	@echo "✅ Clean complete"
 
-run:
-	@$(BUILD_DIR)/$(BINARY) --interactive
+deps:
+	@echo "📦 Downloading dependencies..."
+	$(GOMOD) download
+	$(GOMOD) tidy
+	@echo "✅ Dependencies ready"
 
-# =============================================================================
-# Test
-# =============================================================================
-test:
-	@echo "🧪 Running tests..."
-	$(GOTEST) -v ./...
+fmt:
+	@echo "📝 Formatting code..."
+	$(GOFMT) ./...
 
-test-short:
-	@echo "🧪 Running short tests..."
-	$(GOTEST) -short ./...
-
-cover:
-	@echo "📊 Running tests with coverage..."
-	$(GOTEST) -coverprofile=coverage.out ./internal/...
-	$(GOCMD) tool cover -func=coverage.out | tail -1
-	$(GOCMD) tool cover -html=coverage.out -o coverage.html
-	@echo "✅ Coverage report: coverage.html"
-
-# =============================================================================
-# Code Quality
-# =============================================================================
 lint:
 	@echo "🔍 Running linter..."
 	@if command -v golangci-lint > /dev/null; then \
@@ -111,37 +105,52 @@ lint:
 		echo "⚠️  golangci-lint not installed. Run: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest"; \
 	fi
 
-fmt:
-	@echo "📝 Formatting code..."
-	$(GOFMT) ./...
-
 vet:
 	@echo "🔬 Running go vet..."
 	$(GOCMD) vet ./...
 
-# =============================================================================
-# Dependencies
-# =============================================================================
-deps:
-	@echo "📦 Downloading dependencies..."
-	$(GOMOD) download
-	$(GOMOD) tidy
-	@echo "✅ Dependencies ready"
+test:
+	@echo "🧪 Running tests..."
+	$(GOTEST) -v ./internal/...
+
+cover:
+	@echo "📊 Running tests with coverage..."
+	$(GOTEST) -coverprofile=coverage.out ./internal/...
+	$(GOCMD) tool cover -func=coverage.out | tail -1
+	$(GOCMD) tool cover -html=coverage.out -o coverage.html
+	@echo "✅ Coverage report: coverage.html"
+
+install:
+	@echo "📦 Installing $(BINARY)..."
+	$(GOCMD) install $(LDFLAGS) ./cmd/dialecta
+	@echo "✅ Installed to $(shell go env GOPATH)/bin/$(BINARY)"
 
 # =============================================================================
-# Clean
+# 🎭 Debate Capabilities
 # =============================================================================
-clean:
-	@echo "🧹 Cleaning..."
-	@rm -rf $(BUILD_DIR)
-	@rm -f coverage.out coverage.html
-	@echo "✅ Clean complete"
 
-# =============================================================================
-# Demo
-# =============================================================================
-demo:
-	@echo ""
-	@echo "📢 Running demo..."
-	@echo ""
+debate-ui: build
+	@echo "🚀 Starting Interactive Debate..."
+	@$(BUILD_DIR)/$(BINARY) --interactive
+
+debate-demo: build
+	@echo "📢 Running Demo Debate..."
 	@echo "我们应该在明年启动一个 AI 创业项目" | $(BUILD_DIR)/$(BINARY) -
+
+debate-file: build
+	@if [ -z "$(FILE)" ]; then \
+		echo "❌ Error: Please specify FILE argument (e.g., make debate-file FILE=proposal.md)"; \
+		exit 1; \
+	fi
+	@echo "📄 Analyzing $(FILE)..."
+	@$(BUILD_DIR)/$(BINARY) $(FILE)
+
+debate-mixed: build
+	@echo "🔀 Running Mixed Provider Debate..."
+	@echo "Using: Pro=DeepSeek, Con=DashScope, Judge=Gemini"
+	@echo "话题: 远程办公是否应该成为主流？" | $(BUILD_DIR)/$(BINARY) \
+		--pro-provider deepseek \
+		--con-provider dashscope \
+		--judge-provider gemini \
+		-
+

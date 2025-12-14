@@ -73,7 +73,7 @@ func (c *DeepSeekClient) chat(ctx context.Context, messages []Message, stream bo
 	// Convert messages
 	oaiMessages := make([]openAIMessage, len(messages))
 	for i, m := range messages {
-		oaiMessages[i] = openAIMessage{Role: m.Role, Content: m.Content}
+		oaiMessages[i] = openAIMessage(m)
 	}
 
 	req := openAIRequest{

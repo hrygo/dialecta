@@ -44,7 +44,7 @@ func (c *DashScopeClient) chat(ctx context.Context, messages []Message, stream b
 	// Convert messages (OpenAI compatible format)
 	oaiMessages := make([]openAIMessage, len(messages))
 	for i, m := range messages {
-		oaiMessages[i] = openAIMessage{Role: m.Role, Content: m.Content}
+		oaiMessages[i] = openAIMessage(m)
 	}
 
 	req := openAIRequest{

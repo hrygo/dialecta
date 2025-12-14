@@ -107,7 +107,7 @@ func TestDeepSeekClient_Chat_MockServer(t *testing.T) {
 		// Return mock response
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(mockOpenAIResponse("This is a test response")))
+		_, _ = w.Write([]byte(mockOpenAIResponse("This is a test response")))
 	}))
 	defer server.Close()
 

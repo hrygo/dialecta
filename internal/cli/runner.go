@@ -107,17 +107,25 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 			})
 		}
 
+		// Immediate visual feedback to eliminate "cold wait"
+		// Clear the "Pro [Ready] | Con [Ready]" status line immediately
+		fmt.Printf("\r\033[K%s%s⏳ Status: ⚖️  Judge is deliberating...%s", ColorBrightYellow, ColorBold, ColorReset)
+
 		go func() {
 			defer wg.Done()
 			chars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
 			i := 0
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+
 			for {
 				select {
 				case <-stop:
 					return
-				default:
-					fmt.Printf("\r\033[K⏳ Status: ⚖️  Judge is deliberating... %s", chars[i%len(chars)])
-					time.Sleep(80 * time.Millisecond)
+				case <-ticker.C:
+					// Redraw with spinner animation
+					fmt.Printf("\r\033[K%s%s⏳ Status: ⚖️  Judge is deliberating... %s%s",
+						ColorBrightYellow, ColorBold, chars[i%len(chars)], ColorReset)
 					i++
 				}
 			}
@@ -135,9 +143,8 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 			if done {
 				proDone = true
 				if conDone {
-					// 明确触发裁决状态，确保用户看到
+					// Both done, trigger judge spinner immediately
 					startJudgeSpinner()
-					// updateStatus() // 移除旧调用，避免被 'Ready' 覆盖
 				}
 				return
 			}
