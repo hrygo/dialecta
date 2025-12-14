@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/huangzhonghui/dialecta/internal/config"
-	"github.com/huangzhonghui/dialecta/internal/llm"
-	"github.com/huangzhonghui/dialecta/internal/prompt"
+	"github.com/hrygo/dialecta/internal/config"
+	"github.com/hrygo/dialecta/internal/llm"
+	"github.com/hrygo/dialecta/internal/prompt"
 )
 
 // Result holds the complete debate result

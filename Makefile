@@ -1,7 +1,7 @@
 .PHONY: build test clean install lint
 
 # Binary name
-BINARY := dialecta
+BINARY := ./bin/dialecta
 
 # Build the binary
 build:

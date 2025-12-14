@@ -3,7 +3,7 @@ package prompt
 import (
 	"fmt"
 
-	"github.com/huangzhonghui/dialecta/internal/llm"
+	"github.com/hrygo/dialecta/internal/llm"
 )
 
 // BuildAffirmativeMessages builds the messages for the Affirmative model

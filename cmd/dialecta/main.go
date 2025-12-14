@@ -11,9 +11,9 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/huangzhonghui/dialecta/internal/config"
-	"github.com/huangzhonghui/dialecta/internal/debate"
-	"github.com/huangzhonghui/dialecta/internal/llm"
+	"github.com/hrygo/dialecta/internal/config"
+	"github.com/hrygo/dialecta/internal/debate"
+	"github.com/hrygo/dialecta/internal/llm"
 )
 
 const (

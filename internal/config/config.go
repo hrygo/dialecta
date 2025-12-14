@@ -3,7 +3,7 @@ package config
 import (
 	"os"
 
-	"github.com/huangzhonghui/dialecta/internal/llm"
+	"github.com/hrygo/dialecta/internal/llm"
 )
 
 // RoleConfig holds configuration for a single debate role
@@ -25,7 +25,7 @@ type Config struct {
 var (
 	DefaultProRole = RoleConfig{
 		Provider:    llm.ProviderDeepSeek,
-		Model:       "deepseek-chat",
+		Model:       "qwen-plus",
 		Temperature: 0.8,
 		MaxTokens:   4096,
 	}
@@ -37,7 +37,7 @@ var (
 	}
 	DefaultJudgeRole = RoleConfig{
 		Provider:    llm.ProviderGemini,
-		Model:       "gemini-2.0-flash",
+		Model:       "gemini-3-pro-latest",
 		Temperature: 0.1,
 		MaxTokens:   8192,
 	}
