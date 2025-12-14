@@ -30,7 +30,7 @@ func main() {
 	// Flags
 	proProvider := flag.String("pro-provider", "deepseek", "Provider for affirmative (deepseek, gemini, dashscope)")
 	proModel := flag.String("pro-model", "", "Model for affirmative")
-	conProvider := flag.String("con-provider", "deepseek", "Provider for negative (deepseek, gemini, dashscope)")
+	conProvider := flag.String("con-provider", "dashscope", "Provider for negative (deepseek, gemini, dashscope)")
 	conModel := flag.String("con-model", "", "Model for negative")
 	judgeProvider := flag.String("judge-provider", "gemini", "Provider for adjudicator (deepseek, gemini, dashscope)")
 	judgeModel := flag.String("judge-model", "", "Model for adjudicator")
@@ -54,7 +54,7 @@ Examples:
   dialecta proposal.md
   cat plan.txt | dialecta -
   echo "我们应该启动AI创业项目" | dialecta -
-  dialecta --judge-provider deepseek --judge-model deepseek-reasoner proposal.md
+  dialecta --judge-provider deepseek --judge-model deepseek-chat proposal.md
 
 Options:
 `, colorBold, colorReset)

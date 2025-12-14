@@ -25,19 +25,19 @@ type Config struct {
 var (
 	DefaultProRole = RoleConfig{
 		Provider:    llm.ProviderDeepSeek,
-		Model:       "qwen-plus",
+		Model:       "deepseek-chat",
 		Temperature: 0.8,
 		MaxTokens:   4096,
 	}
 	DefaultConRole = RoleConfig{
-		Provider:    llm.ProviderDeepSeek,
-		Model:       "deepseek-chat",
+		Provider:    llm.ProviderDashScope,
+		Model:       "qwen-plus",
 		Temperature: 0.8,
 		MaxTokens:   4096,
 	}
 	DefaultJudgeRole = RoleConfig{
 		Provider:    llm.ProviderGemini,
-		Model:       "gemini-3-pro-latest",
+		Model:       "gemini-3-pro-preview",
 		Temperature: 0.1,
 		MaxTokens:   8192,
 	}
