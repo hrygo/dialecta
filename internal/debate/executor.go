@@ -26,11 +26,12 @@ type Result struct {
 
 // Executor orchestrates the debate process
 type Executor struct {
-	cfg     *config.Config
-	stream  bool
-	onPro   func(string, bool) // (content, done)
-	onCon   func(string, bool)
-	onJudge func(string, bool)
+	cfg          *config.Config
+	stream       bool
+	onPro        func(string, bool) // (content, done)
+	onCon        func(string, bool)
+	onJudge      func(string, bool)
+	onJudgeStart func() // Called right before judge phase begins
 }
 
 // NewExecutor creates a new debate executor
@@ -47,6 +48,11 @@ func (e *Executor) SetStream(onPro, onCon, onJudge func(string, bool)) {
 	e.onPro = onPro
 	e.onCon = onCon
 	e.onJudge = onJudge
+}
+
+// SetJudgeStartCallback sets callback for when judge phase begins
+func (e *Executor) SetJudgeStartCallback(onJudgeStart func()) {
+	e.onJudgeStart = onJudgeStart
 }
 
 // Execute runs the full debate workflow
@@ -156,6 +162,11 @@ func (e *Executor) Execute(ctx context.Context, material string) (*Result, error
 	}
 	if conErr != nil {
 		return nil, conErr
+	}
+
+	// Notify that judge phase is starting (before any preparation work)
+	if e.onJudgeStart != nil {
+		e.onJudgeStart()
 	}
 
 	// Phase 2: 裁决

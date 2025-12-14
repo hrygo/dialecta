@@ -68,39 +68,77 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 	// Status tracking
 	var (
 		mu        sync.Mutex
-		proStatus = "Thinking..."
-		conStatus = "Thinking..."
+		proStatus = "Thinking"
+		conStatus = "Thinking"
 		proDone   bool
 		conDone   bool
-		judgeDone bool
 	)
-
-	// Helper to update status line
-	updateStatus := func() {
-		// ANSI Clear Line + Carriage Return
-		fmt.Printf("\r\033[K")
-		if !proDone || !conDone {
-			// Show status if not both finished
-			fmt.Printf("⏳ Status: 🔵 Pro [%s] | 🔴 Con [%s]", proStatus, conStatus)
-		} else if !judgeDone {
-			// If both debated, show Judge status
-			fmt.Printf("⏳ Status: ⚖️  Judge is deliberating...")
-		}
-	}
 
 	// Spinner control
 	var (
-		stopSpinner func()
-		spinnerOnce sync.Once
+		stopDebateSpinner func()
+		stopJudgeSpinner  func()
+		debateSpinnerOnce sync.Once
+		judgeSpinnerOnce  sync.Once
 	)
 
-	startJudgeSpinner := func() {
+	// Start debate phase spinner (for Pro/Con thinking)
+	startDebateSpinner := func() {
 		stop := make(chan struct{})
 		var wg sync.WaitGroup
 		wg.Add(1)
 
-		stopSpinner = func() {
-			spinnerOnce.Do(func() {
+		stopDebateSpinner = func() {
+			debateSpinnerOnce.Do(func() {
+				close(stop)
+				wg.Wait()
+			})
+		}
+
+		go func() {
+			defer wg.Done()
+			chars := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+			i := 0
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+
+			for {
+				select {
+				case <-stop:
+					return
+				case <-ticker.C:
+					mu.Lock()
+					if !proDone || !conDone {
+						// Build status display with spinner
+						proDisplay := proStatus
+						conDisplay := conStatus
+						if !proDone && proStatus == "Thinking" {
+							proDisplay = fmt.Sprintf("Thinking... %s", chars[i%len(chars)])
+						}
+						if !conDone && conStatus == "Thinking" {
+							conDisplay = fmt.Sprintf("Thinking... %s", chars[i%len(chars)])
+						}
+						fmt.Printf("\r\033[K⏳ Status: 🔵 Pro [%s] | 🔴 Con [%s]", proDisplay, conDisplay)
+					}
+					mu.Unlock()
+					i++
+				}
+			}
+		}()
+	}
+
+	startJudgeSpinner := func() {
+		// Stop debate spinner first
+		if stopDebateSpinner != nil {
+			stopDebateSpinner()
+		}
+
+		stop := make(chan struct{})
+		var wg sync.WaitGroup
+		wg.Add(1)
+
+		stopJudgeSpinner = func() {
+			judgeSpinnerOnce.Do(func() {
 				close(stop)
 				wg.Wait()
 				fmt.Printf("\r\033[K") // Final clear
@@ -108,7 +146,6 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 		}
 
 		// Immediate visual feedback to eliminate "cold wait"
-		// Clear the "Pro [Ready] | Con [Ready]" status line immediately
 		fmt.Printf("\r\033[K%s%s⏳ Status: ⚖️  Judge is deliberating...%s", ColorBrightYellow, ColorBold, ColorReset)
 
 		go func() {
@@ -132,8 +169,8 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 		}()
 	}
 
-	// Initial status
-	updateStatus()
+	// Start debate spinner
+	startDebateSpinner()
 
 	r.executor.SetStream(
 		// Pro Callback
@@ -142,22 +179,27 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 			defer mu.Unlock()
 			if done {
 				proDone = true
-				if conDone {
-					// Both done, trigger judge spinner immediately
-					startJudgeSpinner()
-				}
+				proStatus = "Done"
 				return
 			}
 
 			// We received the One-Liner
-			// Clear status line
+			// Stop spinner temporarily to display content
+			if stopDebateSpinner != nil {
+				stopDebateSpinner()
+			}
+
 			fmt.Printf("\r\033[K")
 			r.ui.PrintProHeader()
 			fmt.Println(chunk)
 			fmt.Println("") // Spacing
 
 			proStatus = "Ready"
-			updateStatus()
+
+			// Restart spinner if con is still thinking
+			if !conDone {
+				startDebateSpinner()
+			}
 		},
 		// Con Callback
 		func(chunk string, done bool) {
@@ -165,10 +207,12 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 			defer mu.Unlock()
 			if done {
 				conDone = true
-				if proDone {
-					startJudgeSpinner()
-				}
+				conStatus = "Done"
 				return
+			}
+
+			if stopDebateSpinner != nil {
+				stopDebateSpinner()
 			}
 
 			fmt.Printf("\r\033[K")
@@ -177,7 +221,11 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 			fmt.Println("")
 
 			conStatus = "Ready"
-			updateStatus()
+
+			// Restart spinner if pro is still thinking
+			if !proDone {
+				startDebateSpinner()
+			}
 		},
 		// Judge Callback
 		func(chunk string, done bool) {
@@ -185,12 +233,11 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 			defer mu.Unlock()
 
 			// Stop spinner on first activity
-			if stopSpinner != nil {
-				stopSpinner()
+			if stopJudgeSpinner != nil {
+				stopJudgeSpinner()
 			}
 
 			if done {
-				judgeDone = true
 				return
 			}
 
@@ -200,6 +247,13 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 			fmt.Println("")
 		},
 	)
+
+	// Set judge start callback to trigger spinner at the right moment
+	r.executor.SetJudgeStartCallback(func() {
+		mu.Lock()
+		defer mu.Unlock()
+		startJudgeSpinner()
+	})
 
 	result, err := r.executor.Execute(ctx, material)
 
