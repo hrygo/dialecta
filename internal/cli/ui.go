@@ -94,33 +94,28 @@ func (u *UI) PrintBanner() {
 	}
 
 	// Layout constants
-	borderTop := "╭─────────────────────────────────────────────────────────────╮" // 61 dashes
-	borderBot := "╰─────────────────────────────────────────────────────────────╯"
+	// ASCII Art width is 63 characters.
+	// We need 1 space padding on left and right -> 65 chars inner width.
+	// Border needs to be 65 chars long.
+	borderTop := "╭" + strings.Repeat("─", 65) + "╮"
+	borderBot := "╰" + strings.Repeat("─", 65) + "╯"
 	padding := "  "
-	// Content width logic:
-	// Border is 63 chars wide (1 + 61 + 1)
-	// Inner content space is 61 chars
-	// ASCII Art is ~55 chars wide visually
-	// Padding left: 3 chars ("   ")
-	// Padding right: 3 chars ("   ")
-	// Total: 3 + 55 + 3 = 61 matches inner width
 
 	// 1. Top Border
 	fmt.Fprintf(u.out, "%s%s%s%s\n", padding, ColorBrightCyan, borderTop, ColorReset)
 
 	// Helper to print a line with correct coloring
+	// Inner width is 65.
+	// Layout: │ + " " (BgBlack) + Content (63 chars) + " " (BgBlack) + │
 	printLine := func(content string, color string) {
-		// Left Border: Padding + Cyan │ + Reset
+		// Left Border
 		fmt.Fprintf(u.out, "%s%s│%s", padding, ColorBrightCyan, ColorReset)
 
-		// Content: BgBlack + 3 spaces + Color Content + BgBlack 3 spaces + Reset
-		// Note: We avoid ColorReset inside the content to keep BgBlack active.
-		// Instead, we just set the color we want.
-		// But wait, 'content' is printed with 'color'. After content, we need to ensure right padding has BgBlack.
-		// And we need to ensure 'content' printing doesn't reset bg.
-		fmt.Fprintf(u.out, "%s   %s%s   %s", BgBlack, color, content, ColorReset)
+		// Content: BgBlack + 1 space + Color Content + BgBlack 1 space + Reset
+		// We trust ASCII art is exactly 63 chars.
+		fmt.Fprintf(u.out, "%s %s%s%s %s", BgBlack, color, content, BgBlack, ColorReset)
 
-		// Right Border: Cyan │ + Reset
+		// Right Border
 		fmt.Fprintf(u.out, "%s│%s\n", ColorBrightCyan, ColorReset)
 	}
 
@@ -136,32 +131,49 @@ func (u *UI) PrintBanner() {
 	}
 
 	// 3. Spacing line
+	// 65 spaces for full width background
 	fmt.Fprintf(u.out, "%s%s│%s%s%s%s%s│%s\n",
 		padding, ColorBrightCyan, ColorReset,
-		BgBlack, strings.Repeat(" ", 61), ColorReset,
+		BgBlack, strings.Repeat(" ", 65), ColorReset,
 		ColorBrightCyan, ColorReset)
 
 	// 4. Metadata Footer
-	// Line 1: "  ◆ Multi-Persona AI Debate System            ► v1.0.0     "
-	// We use colors directly without intermediate resets to maintain BgBlack
-	// Let's rewrite the format string to be simpler and safer
-	// Line 1
-	fmt.Fprintf(u.out, "%s%s│%s%s  %s◆ Multi-Persona AI Debate System           %s► v1.0.0      %s%s│%s\n",
-		padding, ColorBrightCyan, ColorReset,
-		BgBlack,
-		ColorBrightWhite,
-		ColorDim,
-		ColorReset, // End of content
-		ColorBrightCyan, ColorReset)
+	// Redoing Footer Logic for reliability:
+	// Use explicit spacers.
+	printFooterLine := func(left, right string, colorL, colorR string) {
+		fmt.Fprintf(u.out, "%s%s│%s", padding, ColorBrightCyan, ColorReset)
 
-	// Line 2
-	// "  ◆ Powered by DeepSeek × Gemini × Qwen                     "
-	fmt.Fprintf(u.out, "%s%s│%s%s  %s◆ Powered by DeepSeek × Gemini × Qwen                     %s%s│%s\n",
-		padding, ColorBrightCyan, ColorReset,
-		BgBlack,
-		ColorBrightYellow,
-		ColorReset,
-		ColorBrightCyan, ColorReset)
+		// Left part: "  ◆ "
+		prefix := "  ◆ "
+
+		spacerLen := 0
+		if right == "► v1.0.0" {
+			// Line 1: 21 spaces
+			spacerLen = 21
+		} else {
+			// Line 2: 24 spaces
+			spacerLen = 24
+		}
+		spacer := strings.Repeat(" ", spacerLen)
+
+		// Format string: 15 placeholders for 15 args
+		// Args: BgBlack, White, Prefix, Reset, BgBlack, ColorL, Left, Reset, BgBlack, Spacer, ColorR, Right, Reset, BgBlack, Reset
+		fmt.Fprintf(u.out, "%s %s%s%s%s%s%s%s%s%s%s%s%s%s %s",
+			BgBlack,                              // 1
+			ColorBrightWhite, prefix, ColorReset, // 2,3,4
+			BgBlack,                  // 5
+			colorL, left, ColorReset, // 6,7,8
+			BgBlack,                   // 9
+			spacer,                    // 10
+			colorR, right, ColorReset, // 11,12,13
+			BgBlack,    // 14
+			ColorReset) // 15
+
+		fmt.Fprintf(u.out, "%s│%s\n", ColorBrightCyan, ColorReset)
+	}
+
+	printFooterLine("Multi-Persona AI Debate System", "► v1.0.0", ColorBrightWhite, ColorDim)
+	printFooterLine("Powered by DeepSeek × Gemini × Qwen", "", ColorBrightYellow, "")
 
 	// 5. Bottom Border
 	fmt.Fprintf(u.out, "%s%s%s%s\n\n", padding, ColorBrightCyan, borderBot, ColorReset)
