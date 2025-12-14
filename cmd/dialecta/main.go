@@ -22,6 +22,22 @@ func main() {
 	cfg := config.New()
 	opts.ApplyToConfig(cfg)
 
+	// In interactive mode, let user select model combination
+	if opts.Interactive {
+		reader := cli.DefaultInputReader()
+		combination, err := reader.SelectModelCombination()
+		if err != nil {
+			ui := cli.DefaultUI()
+			ui.PrintError("选择模型组合失败: " + err.Error())
+			os.Exit(1)
+		}
+		// Apply selected combination to config
+		opts.JudgeProvider = combination.JudgeProvider
+		opts.ProProvider = combination.ProProvider
+		opts.ConProvider = combination.ConProvider
+		opts.ApplyToConfig(cfg)
+	}
+
 	// Validate configuration
 	if err := cfg.Validate(); err != nil {
 		ui := cli.DefaultUI()

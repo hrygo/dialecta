@@ -89,6 +89,20 @@ func (r *RoleConfig) ToLLMConfig() llm.Config {
 	}
 }
 
+// GetDefaultModel returns the default model for a given provider
+func GetDefaultModel(provider llm.Provider) string {
+	switch provider {
+	case llm.ProviderDeepSeek:
+		return "deepseek-chat"
+	case llm.ProviderGemini:
+		return "gemini-3-pro-preview"
+	case llm.ProviderDashScope:
+		return "qwen-plus"
+	default:
+		return ""
+	}
+}
+
 // Custom errors
 type ConfigError string
 

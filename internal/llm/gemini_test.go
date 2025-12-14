@@ -24,7 +24,7 @@ func TestNewGeminiClient(t *testing.T) {
 			name:      "with empty model - uses default",
 			apiKey:    "test-key",
 			cfg:       Config{Model: "", Temperature: 0.8, MaxTokens: 4096},
-			wantModel: "gemini-2.0-flash",
+			wantModel: "gemini-3-pro-preview",
 		},
 	}
 

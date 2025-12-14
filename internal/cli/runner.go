@@ -194,7 +194,8 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 			fmt.Println(chunk)
 			fmt.Println("") // Spacing
 
-			proStatus = "Ready"
+			// Keep status as "Thinking" - still generating full argument
+			// proStatus remains unchanged
 
 			// Restart spinner if con is still thinking
 			if !conDone {
@@ -220,7 +221,8 @@ func (r *Runner) runStreaming(ctx context.Context, material string) error {
 			fmt.Println(chunk)
 			fmt.Println("")
 
-			conStatus = "Ready"
+			// Keep status as "Thinking" - still generating full argument
+			// conStatus remains unchanged
 
 			// Restart spinner if pro is still thinking
 			if !proDone {

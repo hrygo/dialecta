@@ -1,4 +1,4 @@
-.PHONY: build test clean install lint fmt cover demo run help all debate-ui debate-demo debate-mixed
+.PHONY: build test clean install lint fmt cover demo run help all ui demo gemini gemini-deepseek gemini-qwen deepseek-qwen
 
 # =============================================================================
 # Variables
@@ -49,11 +49,17 @@ help:
 	@echo "    cover         Run tests with coverage"
 	@echo "    install       Install to GOPATH/bin"
 	@echo ""
-	@echo "  🎭 Debate Capabilities:"
-	@echo "    debate-ui     Run in interactive mode"
-	@echo "    debate-demo   Run a quick demo usage"
-	@echo "    debate-file   Run debate on a file (usage: make debate-file FILE=doc.md)"
-	@echo "    debate-mixed  Run with mixed providers (DeepSeek/Qwen/Gemini)"
+	@echo "  🎭 Debate (Default: Pro=DeepSeek, Con=Qwen, Judge=Gemini):"
+	@echo "    ui                 Interactive mode"
+	@echo "    demo               Quick demo"
+	@echo ""
+	@echo "  🔀 Model Combinations (Judge=Gemini, pipe input):"
+	@echo "    gemini             Pro=Gemini,   Con=Gemini"
+	@echo "    gemini-deepseek    Pro=Gemini,   Con=DeepSeek"
+	@echo "    gemini-qwen        Pro=Gemini,   Con=Qwen"
+	@echo "    deepseek-qwen      Pro=DeepSeek, Con=Qwen"
+	@echo ""
+	@echo "  Example: echo 'AI是否会取代人类？' | make gemini"
 	@echo ""
 
 # =============================================================================
@@ -126,31 +132,44 @@ install:
 	@echo "✅ Installed to $(shell go env GOPATH)/bin/$(BINARY)"
 
 # =============================================================================
-# 🎭 Debate Capabilities
+# 🎭 Debate
 # =============================================================================
+# Basic debate commands without model specification (using defaults)
+# Default: Pro=DeepSeek, Con=Qwen, Judge=Gemini
 
-debate-ui: build
-	@echo "🚀 Starting Interactive Debate..."
-	@$(BUILD_DIR)/$(BINARY) --interactive
+ui: build
+	@echo "🚀 Interactive Mode"
+	@$(BUILD_DIR)/$(BINARY) -i
 
-debate-demo: build
-	@echo "📢 Running Demo Debate..."
+demo: build
+	@echo "📢 Quick Demo"
 	@echo "我们应该在明年启动一个 AI 创业项目" | $(BUILD_DIR)/$(BINARY) -
 
-debate-file: build
-	@if [ -z "$(FILE)" ]; then \
-		echo "❌ Error: Please specify FILE argument (e.g., make debate-file FILE=proposal.md)"; \
-		exit 1; \
-	fi
-	@echo "📄 Analyzing $(FILE)..."
-	@$(BUILD_DIR)/$(BINARY) $(FILE)
+# =============================================================================
+# 🔀 Model Combinations (Judge=Gemini)
+# =============================================================================
+# All combinations use Gemini as Judge, with different Pro/Con combinations:
+# - gemini:          Pro=Gemini,   Con=Gemini
+# - gemini-deepseek: Pro=Gemini,   Con=DeepSeek
+# - gemini-qwen:     Pro=Gemini,   Con=Qwen
+# - deepseek-qwen:   Pro=DeepSeek, Con=Qwen
+#
+# Usage: echo 'your topic' | make <command>
+# Example: echo 'AI是否会取代人类？' | make gemini
 
-debate-mixed: build
-	@echo "🔀 Running Mixed Provider Debate..."
-	@echo "Using: Pro=DeepSeek, Con=DashScope, Judge=Gemini"
-	@echo "话题: 远程办公是否应该成为主流？" | $(BUILD_DIR)/$(BINARY) \
-		--pro-provider deepseek \
-		--con-provider dashscope \
-		--judge-provider gemini \
-		-
+gemini: build
+	@echo "🌟 Gemini vs Gemini"
+	@$(BUILD_DIR)/$(BINARY) --pro-provider gemini --con-provider gemini --judge-provider gemini -
+
+gemini-deepseek: build
+	@echo "⚔️  Gemini vs DeepSeek"
+	@$(BUILD_DIR)/$(BINARY) --pro-provider gemini --con-provider deepseek --judge-provider gemini -
+
+gemini-qwen: build
+	@echo "⚔️  Gemini vs Qwen"
+	@$(BUILD_DIR)/$(BINARY) --pro-provider gemini --con-provider dashscope --judge-provider gemini -
+
+deepseek-qwen: build
+	@echo "⚔️  DeepSeek vs Qwen"
+	@$(BUILD_DIR)/$(BINARY) --pro-provider deepseek --con-provider dashscope --judge-provider gemini -
 

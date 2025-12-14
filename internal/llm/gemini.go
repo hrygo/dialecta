@@ -19,7 +19,7 @@ type GeminiClient struct {
 // NewGeminiClient creates a new Gemini client
 func NewGeminiClient(apiKey string, cfg Config) *GeminiClient {
 	if cfg.Model == "" {
-		cfg.Model = "gemini-2.0-flash"
+		cfg.Model = "gemini-3-pro-preview"
 	}
 	return &GeminiClient{
 		apiKey: apiKey,
