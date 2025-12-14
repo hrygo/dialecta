@@ -1,6 +1,6 @@
 module github.com/hrygo/dialecta
 
-go 1.25.5
+go 1.24.0
 
 require (
 	github.com/google/generative-ai-go v0.20.1
