@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - name: Get version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      - name: Build binaries
+        run: |
+          # Linux amd64
+          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/dialecta-linux-amd64 ./cmd/dialecta
+          
+          # Linux arm64
+          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/dialecta-linux-arm64 ./cmd/dialecta
+          
+          # macOS amd64 (Intel)
+          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/dialecta-darwin-amd64 ./cmd/dialecta
+          
+          # macOS arm64 (Apple Silicon)
+          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/dialecta-darwin-arm64 ./cmd/dialecta
+          
+          # Windows amd64
+          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/dialecta-windows-amd64.exe ./cmd/dialecta
+          
+          # Windows arm64
+          GOOS=windows GOARCH=arm64 go build -ldflags="-s -w" -o dist/dialecta-windows-arm64.exe ./cmd/dialecta
+
+      - name: Create checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            dist/dialecta-linux-amd64
+            dist/dialecta-linux-arm64
+            dist/dialecta-darwin-amd64
+            dist/dialecta-darwin-arm64
+            dist/dialecta-windows-amd64.exe
+            dist/dialecta-windows-arm64.exe
+            dist/checksums.txt
+          body: |
+            ## 🎉 Release ${{ steps.get_version.outputs.VERSION }}
+            
+            ### 📦 Downloads
+            
+            Choose the appropriate binary for your platform:
+            
+            **Linux**
+            - `dialecta-linux-amd64` - Linux x86_64
+            - `dialecta-linux-arm64` - Linux ARM64
+            
+            **macOS**
+            - `dialecta-darwin-amd64` - macOS Intel
+            - `dialecta-darwin-arm64` - macOS Apple Silicon (M1/M2/M3)
+            
+            **Windows**
+            - `dialecta-windows-amd64.exe` - Windows x86_64
+            - `dialecta-windows-arm64.exe` - Windows ARM64
+            
+            ### 📋 Installation
+            
+            **Linux/macOS:**
+            ```bash
+            # Download the binary for your platform
+            # Make it executable
+            chmod +x dialecta-*
+            # Move to PATH
+            sudo mv dialecta-* /usr/local/bin/dialecta
+            ```
+            
+            **Windows:**
+            Download the `.exe` file and add it to your PATH.
+            
+            ### 🔐 Verification
+            
+            Verify your download using the checksums:
+            ```bash
+            sha256sum -c checksums.txt
+            ```
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
